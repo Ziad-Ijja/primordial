@@ -17,6 +17,12 @@
     "fogDensity": 0.016,
     "spaceTexture": "/textures/space/space-background.jpg",
     "globeTexture": "/textures/carboniferous/globe.jpg",
+    "globeRoughnessTexture": "/textures/carboniferous/globe_roughness.jpg",
+    "sunLightIntensity": 1.4,
+    "ambientDiffuseColor": "#6f8fb8",
+    "ambientGroundColor": "#1a1a1a",
+    "atmosphereColor": "#a0c4e8",
+    "atmosphereGlowIntensity": 0.42,
     "texturePresets": [
       {
         "id": "carb-350",
@@ -37,7 +43,7 @@
         "source": "PALEOMAP: Map62a ECarb Late Visean_330.jpg"
       }
     ],
-    "ambientLight": 0.74,
+    "ambientLight": 0.11,
     "notes": "PALEOMAP raster source: Map64a ECarb Tournaisian_350.jpg"
   },
   "species": []

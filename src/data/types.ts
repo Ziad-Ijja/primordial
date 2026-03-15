@@ -14,8 +14,14 @@ export interface PeriodVisuals {
   fogDensity: number
   spaceTexture: string
   globeTexture: string
+  globeRoughnessTexture: string
   texturePresets?: TexturePreset[]
   ambientLight: number
+  sunLightIntensity: number
+  ambientDiffuseColor: string
+  ambientGroundColor: string
+  atmosphereColor: string
+  atmosphereGlowIntensity: number
   notes?: string
 }
 

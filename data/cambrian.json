@@ -17,6 +17,12 @@
     "fogDensity": 0.012,
     "spaceTexture": "/textures/space/space-background.jpg",
     "globeTexture": "/textures/cambrian/globe.jpg",
+    "globeRoughnessTexture": "/textures/cambrian/globe_roughness.jpg",
+    "sunLightIntensity": 1.36,
+    "ambientDiffuseColor": "#4e5f86",
+    "ambientGroundColor": "#151515",
+    "atmosphereColor": "#c8845a",
+    "atmosphereGlowIntensity": 0.35,
     "texturePresets": [
       {
         "id": "cam-530",
@@ -37,7 +43,7 @@
         "source": "PALEOMAP: Map85a early Late Cambrian Series 3_510.jpg"
       }
     ],
-    "ambientLight": 0.82,
+    "ambientLight": 0.11,
     "notes": "PALEOMAP raster source: Map87a Early Cambrian Terreneuvian_530.jpg"
   },
   "species": []
