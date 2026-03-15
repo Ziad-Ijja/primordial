@@ -1,0 +1,44 @@
+{
+  "id": "carboniferous",
+  "name": "Carboniferous",
+  "dateRange": "~350 Ma",
+  "description": "Coal swamps, towering lycopsid forests, and oxygen-rich terrestrial ecosystems.",
+  "dataState": "placeholder",
+  "atmosphere": {
+    "o2Percent": null,
+    "co2Ppm": null,
+    "avgTempCelsius": null,
+    "pressureAtm": null,
+    "seaLevelMeters": null
+  },
+  "visuals": {
+    "skyColor": "#10241d",
+    "fogColor": "#2e6b55",
+    "fogDensity": 0.016,
+    "spaceTexture": "/textures/space/space-background.jpg",
+    "globeTexture": "/textures/carboniferous/globe.jpg",
+    "texturePresets": [
+      {
+        "id": "carb-350",
+        "label": "350 Ma",
+        "texturePath": "/textures/carboniferous/preset-350.jpg",
+        "source": "PALEOMAP: Map64a ECarb Tournaisian_350.jpg"
+      },
+      {
+        "id": "carb-340",
+        "label": "340 Ma",
+        "texturePath": "/textures/carboniferous/preset-340.jpg",
+        "source": "PALEOMAP: Map63a ECarb Early Visean_340.jpg"
+      },
+      {
+        "id": "carb-330",
+        "label": "330 Ma",
+        "texturePath": "/textures/carboniferous/preset-330.jpg",
+        "source": "PALEOMAP: Map62a ECarb Late Visean_330.jpg"
+      }
+    ],
+    "ambientLight": 0.74,
+    "notes": "PALEOMAP raster source: Map64a ECarb Tournaisian_350.jpg"
+  },
+  "species": []
+}

@@ -1,0 +1,44 @@
+{
+  "id": "cambrian",
+  "name": "Cambrian",
+  "dateRange": "~540 Ma",
+  "description": "Explosion of multicellular life and highly unfamiliar marine ecosystems.",
+  "dataState": "placeholder",
+  "atmosphere": {
+    "o2Percent": null,
+    "co2Ppm": null,
+    "avgTempCelsius": null,
+    "pressureAtm": null,
+    "seaLevelMeters": null
+  },
+  "visuals": {
+    "skyColor": "#4a2316",
+    "fogColor": "#7b4a29",
+    "fogDensity": 0.012,
+    "spaceTexture": "/textures/space/space-background.jpg",
+    "globeTexture": "/textures/cambrian/globe.jpg",
+    "texturePresets": [
+      {
+        "id": "cam-530",
+        "label": "530 Ma",
+        "texturePath": "/textures/cambrian/preset-530.jpg",
+        "source": "PALEOMAP: Map87a Early Cambrian Terreneuvian_530.jpg"
+      },
+      {
+        "id": "cam-520",
+        "label": "520 Ma",
+        "texturePath": "/textures/cambrian/preset-520.jpg",
+        "source": "PALEOMAP: Map86a Middle Cambrian Series 2_520.jpg"
+      },
+      {
+        "id": "cam-510",
+        "label": "510 Ma",
+        "texturePath": "/textures/cambrian/preset-510.jpg",
+        "source": "PALEOMAP: Map85a early Late Cambrian Series 3_510.jpg"
+      }
+    ],
+    "ambientLight": 0.82,
+    "notes": "PALEOMAP raster source: Map87a Early Cambrian Terreneuvian_530.jpg"
+  },
+  "species": []
+}
