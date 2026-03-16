@@ -5,8 +5,8 @@
   "description": "Explosion of multicellular life and highly unfamiliar marine ecosystems.",
   "dataState": "placeholder",
   "atmosphere": {
-    "o2Percent": 12.5,
-    "co2Ppm":4500,
+    "o2Percent": 21,
+    "co2Ppm": 4500,
     "avgTempCelsius": 21,
     "pressureAtm": null,
     "seaLevelMeters": 60
@@ -18,33 +18,14 @@
     "spaceTexture": "/textures/space/space-background.jpg",
     "globeTexture": "/textures/cambrian/globe.jpg",
     "globeRoughnessTexture": "/textures/cambrian/globe_roughness.jpg",
-    "sunLightIntensity": 1.36,
-    "ambientDiffuseColor": "#4e5f86",
-    "ambientGroundColor": "#151515",
+    "sunLightIntensity": 3.8,
+    "sunDiffuseColor": "#ffe0a0",
+    "ambientLight": 1.1,
+    "ambientDiffuseColor": "#506a96",
+    "ambientGroundColor": "#0d0c0a",
     "atmosphereColor": "#a89080",
-    "atmosphereGlowIntensity": 0.30,
-    "texturePresets": [
-      {
-        "id": "cam-530",
-        "label": "530 Ma",
-        "texturePath": "/textures/cambrian/preset-530.jpg",
-        "source": "PALEOMAP: Map87a Early Cambrian Terreneuvian_530.jpg"
-      },
-      {
-        "id": "cam-520",
-        "label": "520 Ma",
-        "texturePath": "/textures/cambrian/preset-520.jpg",
-        "source": "PALEOMAP: Map86a Middle Cambrian Series 2_520.jpg"
-      },
-      {
-        "id": "cam-510",
-        "label": "510 Ma",
-        "texturePath": "/textures/cambrian/preset-510.jpg",
-        "source": "PALEOMAP: Map85a early Late Cambrian Series 3_510.jpg"
-      }
-    ],
-    "ambientLight": 0.11,
-    "notes": "PALEOMAP raster source: Map87a Early Cambrian Terreneuvian_530.jpg"
+    "atmosphereGlowIntensity": 0.32,
+    "notes": "PALEOMAP raster source: Map87a Early Cambrian Terreneuvian_530.jpg. Sun is ~4% dimmer at 540Ma \u2014 reflected in lower sunLightIntensity. Lighting values are final/direct \u2014 no hidden multipliers."
   },
   "species": []
 }

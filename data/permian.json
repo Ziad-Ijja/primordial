@@ -12,39 +12,20 @@
     "seaLevelMeters": null
   },
   "visuals": {
-    "skyColor": "#231710",
-    "fogColor": "#8b6542",
+    "skyColor": "#4a2316",
+    "fogColor": "#7b4a29",
     "fogDensity": 0.01,
     "spaceTexture": "/textures/space/space-background.jpg",
     "globeTexture": "/textures/permian/globe.jpg",
     "globeRoughnessTexture": "/textures/permian/globe_roughness.jpg",
-    "sunLightIntensity": 1.34,
-    "ambientDiffuseColor": "#5f7ea1",
-    "ambientGroundColor": "#171717",
-    "atmosphereColor": "#7aabd4",
-    "atmosphereGlowIntensity": 0.30,
-    "texturePresets": [
-      {
-        "id": "perm-290",
-        "label": "290 Ma",
-        "texturePath": "/textures/permian/preset-290.jpg",
-        "source": "PALEOMAP: Map55a EP Sakmarian_290.jpg"
-      },
-      {
-        "id": "perm-280",
-        "label": "280 Ma",
-        "texturePath": "/textures/permian/preset-280.jpg",
-        "source": "PALEOMAP: Map54a EP Artinskian_280.jpg"
-      },
-      {
-        "id": "perm-275",
-        "label": "275 Ma",
-        "texturePath": "/textures/permian/preset-275.jpg",
-        "source": "PALEOMAP: Map53a EP Kungurian_275.jpg"
-      }
-    ],
-    "ambientLight": 0.11,
-    "notes": "PALEOMAP raster source: Map55a EP Sakmarian_290.jpg"
+    "sunLightIntensity": 3.8,
+    "sunDiffuseColor": "#fff0cc",
+    "ambientLight": 1.1,
+    "ambientDiffuseColor": "#506a96",
+    "ambientGroundColor": "#0d0c0a",
+    "atmosphereColor": "#a89080",
+    "atmosphereGlowIntensity": 0.32,
+    "notes": "PALEOMAP raster source: Map55a EP Sakmarian_290.jpg. Lighting values are final/direct \u2014 no hidden multipliers."
   },
   "species": []
 }

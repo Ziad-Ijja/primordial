@@ -18,7 +18,7 @@ import {
 import type { PeriodData } from '../data/types'
 
 export interface GlobeSceneController {
-  applyPeriod: (period: PeriodData, texturePathOverride?: string) => void
+  applyPeriod: (period: PeriodData) => void
   setCloudsVisible: (visible: boolean) => void
   dispose: () => void
 }
@@ -28,21 +28,51 @@ function color4FromHex(hex: string) {
   return new Color4(color.r, color.g, color.b, 1)
 }
 
-function clampedAmbientIntensity(value: number) {
-  return Math.max(0.05, Math.min(0.12, value))
-}
+// ---------------------------------------------------------------------------
+// LIGHTING PHILOSOPHY — Google Earth style
+//
+//  The sun follows the camera with a large fixed angular offset (~53°), so
+//  the terminator (day/night boundary) cuts clearly across the visible face
+//  of the globe — exactly like Google Earth where ~1/3 of the visible
+//  hemisphere is in shadow.
+//
+//  Offset computed each frame in camera-local space:
+//    forward  = normalize(camera.target − camera.position)
+//    right    = normalize(cross(worldUp, forward))
+//    up       = normalize(cross(forward, right))
+//    sunDir   = normalize(forward + UP_BIAS·up + RIGHT_BIAS·right)
+//
+//  SUN_UP_BIAS = +1.0 / SUN_RIGHT_BIAS = -0.9  →  sun upper-left,
+//  shadow falls on the bottom-right (matches the Google Earth default view).
+//  Combined angle: arctan(√(1²+0.9²)) ≈ 53° off the camera axis.
+//
+//  The HemisphericLight fill keeps the dark side readable — not pitch-black.
+//  Per-period JSON values are final — no hidden multipliers.
+// ---------------------------------------------------------------------------
+
+// Angular offset of the sun relative to the camera look direction (camera-local space).
+// Increase these to push the sun further off-axis → more dramatic shadows.
+// Decrease them to flatten the lighting → brighter, safer look.
+const SUN_UP_BIAS    = -1.00   // sun above camera line of sight
+const SUN_RIGHT_BIAS =  0.90   // sun to the left → shadow on the right
 
 export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneController {
   const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true })
-  const scene = new Scene(engine)
+  const scene  = new Scene(engine)
   scene.clearColor = color4FromHex('#000000')
 
+  // ------------------------------------------------------------------
+  // Image processing — Google Earth: vibrant, sharp, not over-cooked
+  // ------------------------------------------------------------------
   scene.imageProcessingConfiguration.toneMappingEnabled = true
-  scene.imageProcessingConfiguration.toneMappingType =
-  ImageProcessingConfiguration.TONEMAPPING_ACES
-  scene.imageProcessingConfiguration.exposure = 1.25
-  scene.imageProcessingConfiguration.contrast = 1.08
+  scene.imageProcessingConfiguration.toneMappingType    =
+    ImageProcessingConfiguration.TONEMAPPING_ACES
+  scene.imageProcessingConfiguration.exposure = 1.55   // Google Earth level brightness
+  scene.imageProcessingConfiguration.contrast = 1.20   // stronger contrast for vivid colors
 
+  // ------------------------------------------------------------------
+  // Camera
+  // ------------------------------------------------------------------
   const camera = new ArcRotateCamera(
     'globe-camera',
     Math.PI / 1.7,
@@ -53,20 +83,29 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
   )
   camera.lowerRadiusLimit = 5.4
   camera.upperRadiusLimit = 11.4
-  camera.wheelPrecision = 28
+  camera.wheelPrecision   = 28
   camera.attachControl(canvas, true)
 
-  // Sun Light
-  const sun = new DirectionalLight('sun-light', new Vector3(-1.2, -0.6, -0.8), scene)
-  sun.intensity = 1.4
-  sun.diffuse = new Color3(1.0, 0.97, 0.88)
+  // ------------------------------------------------------------------
+  // Key light — Sun (camera-relative, offset upper-right)
+  // ------------------------------------------------------------------
+  const sun = new DirectionalLight('sun-light', new Vector3(0, -1, 0), scene)
+  sun.intensity = 5.5                               // Google Earth noon sun — very strong key
+  sun.diffuse   = new Color3(1.0, 0.98, 0.92)      // near-white with subtle warmth
+  sun.specular  = Color3.Black()                    // no specular — kills the white hotspot on the pole
 
-  // Ambient Light
-  const ambient = new HemisphericLight('ambient-light', new Vector3(0, 1, 0), scene)
-  ambient.intensity = 0.18
-  ambient.diffuse = new Color3(0.25, 0.30, 0.38)
-  ambient.groundColor = new Color3(0.05, 0.05, 0.07)
+  // ------------------------------------------------------------------
+  // Fill light — Sky ambient (Rayleigh-scatter sky blue)
+  // ------------------------------------------------------------------
+  const skyFill = new HemisphericLight('sky-fill', new Vector3(0, 1, 0), scene)
+  skyFill.intensity   = 1.20                        // Google Earth: bright atmospheric fill
+  skyFill.diffuse     = new Color3(0.35, 0.52, 0.85) // rich Rayleigh sky blue — saturated
+  skyFill.groundColor = new Color3(0.08, 0.06, 0.05) // very dark warm, faint night-side warmth
+  skyFill.specular    = Color3.Black()              // no specular from fill
 
+  // ------------------------------------------------------------------
+  // Geometry
+  // ------------------------------------------------------------------
   const spaceDome = MeshBuilder.CreateSphere(
     'space-dome',
     { diameter: 120, segments: 48, sideOrientation: Mesh.BACKSIDE },
@@ -83,26 +122,31 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
     scene,
   )
 
-  const material = new PBRMaterial('earth-material', scene)
+  // ------------------------------------------------------------------
+  // Materials
+  // ------------------------------------------------------------------
+  const material      = new PBRMaterial('earth-material', scene)
   const spaceMaterial = new StandardMaterial('space-material', scene)
   const cloudMaterial = new StandardMaterial('cloud-material', scene)
 
-  material.metallic = 0.0
-  material.roughness = 0.88
-  material.ambientColor = new Color3(0.02, 0.02, 0.02)
-  material.directIntensity = 1.0
+  // Globe — clean PBR, no hacks
+  material.metallic            = 0.0
+  material.roughness           = 0.78    // slightly smoother than before for more satellite-like feel
+  material.albedoColor         = new Color3(1.0, 1.0, 1.0)
+  material.ambientColor        = new Color3(0.0, 0.0, 0.0) // let the HemisphericLight handle fill
+  material.directIntensity     = 1.4   // brighter lit face
   material.environmentIntensity = 0.0
-  material.backFaceCulling = true
+  material.specularIntensity   = 0.0    // fully diffuse — no specular hotspot
+  material.backFaceCulling     = true
 
-  // Increase the brightness of the globe material to make it more visible in dark scenes without a texture
-  material.albedoColor = new Color3(1.28, 1.28, 1.28)
-
+  // Space dome
   spaceMaterial.disableLighting = true
   spaceMaterial.backFaceCulling = false
-  spaceMaterial.fogEnabled = false
-  spaceMaterial.specularColor = Color3.Black()
-  spaceMaterial.emissiveColor = Color3.White()
+  spaceMaterial.fogEnabled      = false
+  spaceMaterial.specularColor   = Color3.Black()
+  spaceMaterial.emissiveColor   = Color3.White()
 
+  // Clouds
   const cloudTexture = new Texture(
     '/textures/clouds.jpg',
     scene,
@@ -111,29 +155,34 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
     Texture.TRILINEAR_SAMPLINGMODE,
     undefined,
     () => {
-      cloudMaterial.alpha = 0
+      cloudMaterial.alpha          = 0
       cloudMaterial.diffuseTexture = null
       cloudMaterial.opacityTexture = null
     },
   )
-  cloudMaterial.diffuseTexture = cloudTexture
-  cloudMaterial.opacityTexture = cloudTexture
+  cloudMaterial.diffuseTexture               = cloudTexture
+  cloudMaterial.opacityTexture               = cloudTexture
   cloudMaterial.opacityTexture.getAlphaFromRGB = true
-  cloudMaterial.alpha = 0.72
+  cloudMaterial.alpha         = 0.72
   cloudMaterial.backFaceCulling = true
   cloudMaterial.specularColor = Color3.Black()
-  cloudMaterial.emissiveColor = new Color3(0.06, 0.06, 0.06)
+  cloudMaterial.emissiveColor = new Color3(0.18, 0.18, 0.18) // brighter whites on clouds
 
-  globe.material = material
+  globe.material    = material
   spaceDome.material = spaceMaterial
-  clouds.material = cloudMaterial
+  clouds.material   = cloudMaterial
+
   spaceDome.isPickable = false
-  clouds.isPickable = false
+  clouds.isPickable    = false
   spaceDome.infiniteDistance = true
 
+  // ------------------------------------------------------------------
+  // Atmosphere glow (limb effect)
+  // ------------------------------------------------------------------
   let atmosphereColor = Color3.FromHexString('#7aabd4')
+
   const atmosphereGlow = new GlowLayer('atmosphere', scene)
-  atmosphereGlow.intensity = 0.28
+  atmosphereGlow.intensity      = 0.30
   atmosphereGlow.blurKernelSize = 24
   atmosphereGlow.addExcludedMesh(spaceDome)
   atmosphereGlow.addExcludedMesh(clouds)
@@ -142,84 +191,80 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
       result.set(atmosphereColor.r, atmosphereColor.g, atmosphereColor.b, 1)
       return
     }
-
     result.set(0, 0, 0, 0)
   }
 
-  let globeTexture: Texture | null = null
-  let spaceTexture: Texture | null = null
+  // ------------------------------------------------------------------
+  // Per-frame rotation — globe & clouds only, NO sun recalculation
+  // ------------------------------------------------------------------
+  let globeTexture:     Texture | null = null
+  let spaceTexture:     Texture | null = null
   let roughnessTexture: Texture | null = null
 
   scene.onBeforeRenderObservable.add(() => {
-    globe.rotation.y += engine.getDeltaTime() * 0.00004
+    globe.rotation.y  += engine.getDeltaTime() * 0.00004
     clouds.rotation.y += engine.getDeltaTime() * 0.00006
     clouds.rotation.x += engine.getDeltaTime() * 0.000001
 
+    // Sun follows the camera with a fixed angular offset in camera-local space.
+    // This keeps the visible face always lit while producing oblique shadows
+    // from mountains and terrain — the Google Earth look.
     const forward = camera.target.subtract(camera.position).normalize()
 
-    const worldUp = new Vector3(0, 1, 0)
-    const right = Vector3.Cross(worldUp, forward).normalize()
-    const up = Vector3.Cross(forward, right).normalize()
+    // Stable up vector: cross(worldUp, forward) gives camera-local right,
+    // then cross(forward, right) gives camera-local up — no gimbal lock issues
+    // at typical globe-viewing angles.
+    const worldUp = Vector3.Up()
+    const right   = Vector3.Cross(worldUp, forward).normalize()
+    const up      = Vector3.Cross(forward, right).normalize()
 
-    const offsetUp    =  0.45   
-    const offsetLeft  = -0.55  
-
-    const sunDir = forward
-      .add(up.scale(offsetUp))
-      .add(right.scale(offsetLeft))
+    sun.direction = forward
+      .add(up.scale(SUN_UP_BIAS))
+      .add(right.scale(SUN_RIGHT_BIAS))
       .normalize()
-
-    sun.direction = sunDir
   })
 
-  engine.runRenderLoop(() => {
-    scene.render()
-  })
-
-  const resize = () => {
-    engine.resize()
-  }
-
+  engine.runRenderLoop(() => scene.render())
+  const resize = () => engine.resize()
   window.addEventListener('resize', resize)
 
+  // ------------------------------------------------------------------
+  // Public API
+  // ------------------------------------------------------------------
   return {
-    applyPeriod(period, texturePathOverride) {
+    applyPeriod(period) {
       scene.clearColor = color4FromHex('#000000')
-      scene.fogMode = Scene.FOGMODE_NONE
+      scene.fogMode    = Scene.FOGMODE_NONE
 
-      sun.intensity = period.visuals.sunLightIntensity
-      ambient.intensity = clampedAmbientIntensity(period.visuals.ambientLight)
-      ambient.diffuse = Color3.FromHexString(period.visuals.ambientDiffuseColor).scale(0.38)
-      ambient.groundColor = Color3.FromHexString(period.visuals.ambientGroundColor).scale(0.35)
-      atmosphereColor = Color3.FromHexString(period.visuals.atmosphereColor)
+      // Direct assignment — JSON values are already final, no hidden multipliers
+      sun.intensity    = period.visuals.sunLightIntensity
+      sun.diffuse      = Color3.FromHexString(period.visuals.sunDiffuseColor ?? '#fff8e0')
+
+      skyFill.intensity   = period.visuals.ambientLight
+      skyFill.diffuse     = Color3.FromHexString(period.visuals.ambientDiffuseColor)
+      skyFill.groundColor = Color3.FromHexString(period.visuals.ambientGroundColor)
+
+      atmosphereColor          = Color3.FromHexString(period.visuals.atmosphereColor)
       atmosphereGlow.intensity = period.visuals.atmosphereGlowIntensity
 
-      if (globeTexture) {
-        globeTexture.dispose()
-      }
-      if (spaceTexture) {
-        spaceTexture.dispose()
-      }
-      if (roughnessTexture) {
-        roughnessTexture.dispose()
-        roughnessTexture = null
-      }
+      // Texture swap
+      if (globeTexture)     { globeTexture.dispose()     }
+      if (spaceTexture)     { spaceTexture.dispose()     }
+      if (roughnessTexture) { roughnessTexture.dispose() ; roughnessTexture = null }
 
-      globeTexture = new Texture(
-        texturePathOverride ?? period.visuals.globeTexture,
-        scene,
-        true,
-        false,
-      )
+      globeTexture = new Texture(period.visuals.globeTexture, scene, true, false)
       spaceTexture = new Texture(period.visuals.spaceTexture, scene, true, false)
       spaceTexture.uScale = -1
 
-      material.albedoTexture = globeTexture
-      material.metallic = 0.0
-      material.roughness = 0.88
-      material.ambientColor = new Color3(0.02, 0.02, 0.02)
-      material.directIntensity = 1.0
+      // Reset material to clean state
+      material.albedoTexture    = globeTexture
+      material.albedoColor      = new Color3(1.0, 1.0, 1.0)
+      material.metallic         = 0.0
+      material.roughness        = 0.78
+      material.ambientColor     = new Color3(0.0, 0.0, 0.0)
+      material.directIntensity  = 1.0
       material.environmentIntensity = 0.0
+      material.specularIntensity = 0.0
 
       if (period.visuals.globeRoughnessTexture) {
         roughnessTexture = new Texture(
@@ -229,46 +274,36 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
           false,
           Texture.TRILINEAR_SAMPLINGMODE,
           () => {
-            if (!roughnessTexture) {
-              return
-            }
-
-            material.metallicTexture = roughnessTexture
+            if (!roughnessTexture) return
+            material.metallicTexture                     = roughnessTexture
             material.useRoughnessFromMetallicTextureAlpha = false
             material.useRoughnessFromMetallicTextureGreen = true
-            material.roughness = 0.77
+            material.roughness = 0.75
           },
           () => {
             material.metallicTexture = null
-            material.roughness = 0.88
-            if (roughnessTexture) {
-              roughnessTexture.dispose()
-              roughnessTexture = null
-            }
+            material.roughness = 0.78
+            if (roughnessTexture) { roughnessTexture.dispose() ; roughnessTexture = null }
           },
         )
       } else {
         material.metallicTexture = null
-        material.roughness = 0.88
+        material.roughness = 0.78
       }
 
-      spaceMaterial.diffuseTexture = spaceTexture
+      spaceMaterial.diffuseTexture  = spaceTexture
       spaceMaterial.emissiveTexture = spaceTexture
     },
+
     setCloudsVisible(visible) {
       clouds.setEnabled(visible)
     },
+
     dispose() {
       window.removeEventListener('resize', resize)
-      if (globeTexture) {
-        globeTexture.dispose()
-      }
-      if (spaceTexture) {
-        spaceTexture.dispose()
-      }
-      if (roughnessTexture) {
-        roughnessTexture.dispose()
-      }
+      if (globeTexture)     globeTexture.dispose()
+      if (spaceTexture)     spaceTexture.dispose()
+      if (roughnessTexture) roughnessTexture.dispose()
       cloudTexture.dispose()
       scene.dispose()
       engine.dispose()

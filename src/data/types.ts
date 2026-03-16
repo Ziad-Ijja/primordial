@@ -15,21 +15,14 @@ export interface PeriodVisuals {
   spaceTexture: string
   globeTexture: string
   globeRoughnessTexture: string
-  texturePresets?: TexturePreset[]
   ambientLight: number
   sunLightIntensity: number
+  sunDiffuseColor?: string 
   ambientDiffuseColor: string
   ambientGroundColor: string
   atmosphereColor: string
   atmosphereGlowIntensity: number
   notes?: string
-}
-
-export interface TexturePreset {
-  id: string
-  label: string
-  texturePath: string
-  source?: string
 }
 
 export type ReconstructionConfidence = 'low' | 'medium' | 'high'

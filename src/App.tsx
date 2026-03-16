@@ -7,20 +7,6 @@ function App() {
   const [cloudsVisible, setCloudsVisible] = useState(true)
   const selectedPeriod =
     periods.find((period) => period.id === selectedPeriodId) ?? periods[0]
-  const [selectedPresetByPeriod, setSelectedPresetByPeriod] = useState<
-    Record<string, string>
-  >(() => {
-    const initialState: Record<string, string> = {}
-
-    for (const period of periods) {
-      const firstPresetId = period.visuals.texturePresets?.[0]?.id
-      if (firstPresetId) {
-        initialState[period.id] = firstPresetId
-      }
-    }
-
-    return initialState
-  })
   const [selectedSpeciesId, setSelectedSpeciesId] = useState<string | null>(
     selectedPeriod?.species[0]?.id ?? null,
   )
@@ -34,25 +20,11 @@ function App() {
     const nextPeriod = periods.find((period) => period.id === periodId)
     setSelectedPeriodId(periodId)
     setSelectedSpeciesId(nextPeriod?.species[0]?.id ?? null)
-
-    if (nextPeriod?.visuals.texturePresets?.length) {
-      setSelectedPresetByPeriod((prev) => ({
-        ...prev,
-        [periodId]:
-          prev[periodId] ?? nextPeriod.visuals.texturePresets?.[0]?.id ?? prev[periodId],
-      }))
-    }
   }
 
   if (!selectedPeriod) {
     return null
   }
-
-  const presets = selectedPeriod.visuals.texturePresets ?? []
-  const activePresetId = selectedPresetByPeriod[selectedPeriod.id] ?? presets[0]?.id
-  const activePreset = presets.find((preset) => preset.id === activePresetId) ?? null
-  const activeTexturePath =
-    activePreset?.texturePath ?? presets[0]?.texturePath ?? selectedPeriod.visuals.globeTexture
 
   const metricRows = [
     {
@@ -94,7 +66,6 @@ function App() {
         period={selectedPeriod}
         immersive
         className="absolute inset-0"
-        selectedTexturePath={activeTexturePath}
         cloudsVisible={cloudsVisible}
       />
 
@@ -222,38 +193,6 @@ function App() {
             >
               Nuages: {cloudsVisible ? 'ON' : 'OFF'}
             </button>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {presets.length > 0 ? (
-              presets.map((preset) => {
-                const active = preset.id === activePresetId
-
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() =>
-                      setSelectedPresetByPeriod((prev) => ({
-                        ...prev,
-                        [selectedPeriod.id]: preset.id,
-                      }))
-                    }
-                    className={[
-                      'rounded-lg border px-2.5 py-1.5 text-xs transition',
-                      active
-                        ? 'border-cyan-200/60 bg-cyan-300/20 text-cyan-50'
-                        : 'border-white/20 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white',
-                    ].join(' ')}
-                  >
-                    {preset.label}
-                  </button>
-                )
-              })
-            ) : (
-              <span className="rounded-lg border border-white/20 bg-white/5 px-2.5 py-1.5 text-xs text-white/70">
-                No presets
-              </span>
-            )}
           </div>
         </article>
       </section>
