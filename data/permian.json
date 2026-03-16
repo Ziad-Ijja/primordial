@@ -22,7 +22,7 @@
     "ambientDiffuseColor": "#5f7ea1",
     "ambientGroundColor": "#171717",
     "atmosphereColor": "#7aabd4",
-    "atmosphereGlowIntensity": 0.38,
+    "atmosphereGlowIntensity": 0.30,
     "texturePresets": [
       {
         "id": "perm-290",

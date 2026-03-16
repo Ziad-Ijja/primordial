@@ -5,11 +5,11 @@
   "description": "Explosion of multicellular life and highly unfamiliar marine ecosystems.",
   "dataState": "placeholder",
   "atmosphere": {
-    "o2Percent": null,
-    "co2Ppm": null,
-    "avgTempCelsius": null,
+    "o2Percent": 12.5,
+    "co2Ppm":4500,
+    "avgTempCelsius": 21,
     "pressureAtm": null,
-    "seaLevelMeters": null
+    "seaLevelMeters": 60
   },
   "visuals": {
     "skyColor": "#4a2316",
@@ -21,8 +21,8 @@
     "sunLightIntensity": 1.36,
     "ambientDiffuseColor": "#4e5f86",
     "ambientGroundColor": "#151515",
-    "atmosphereColor": "#c8845a",
-    "atmosphereGlowIntensity": 0.35,
+    "atmosphereColor": "#a89080",
+    "atmosphereGlowIntensity": 0.30,
     "texturePresets": [
       {
         "id": "cam-530",

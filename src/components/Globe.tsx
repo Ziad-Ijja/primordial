@@ -8,6 +8,7 @@ interface GlobeProps {
   className?: string
   immersive?: boolean
   selectedTexturePath?: string
+  cloudsVisible?: boolean
 }
 
 export function Globe({
@@ -15,6 +16,7 @@ export function Globe({
   className = '',
   immersive = false,
   selectedTexturePath,
+  cloudsVisible = true,
 }: GlobeProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const sceneController = useBabylonScene(canvasRef, createGlobeScene)
@@ -22,6 +24,10 @@ export function Globe({
   useEffect(() => {
     sceneController?.applyPeriod(period, selectedTexturePath)
   }, [period, selectedTexturePath, sceneController])
+
+  useEffect(() => {
+    sceneController?.setCloudsVisible(cloudsVisible)
+  }, [cloudsVisible, sceneController])
 
   return (
     <div

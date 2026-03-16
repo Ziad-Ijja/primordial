@@ -19,6 +19,7 @@ import type { PeriodData } from '../data/types'
 
 export interface GlobeSceneController {
   applyPeriod: (period: PeriodData, texturePathOverride?: string) => void
+  setCloudsVisible: (visible: boolean) => void
   dispose: () => void
 }
 
@@ -36,10 +37,9 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
   const scene = new Scene(engine)
   scene.clearColor = color4FromHex('#000000')
 
-  // Tonemapping — ACES léger, exposure réduite pour ne pas écraser les couleurs
   scene.imageProcessingConfiguration.toneMappingEnabled = true
   scene.imageProcessingConfiguration.toneMappingType =
-    ImageProcessingConfiguration.TONEMAPPING_ACES
+  ImageProcessingConfiguration.TONEMAPPING_ACES
   scene.imageProcessingConfiguration.exposure = 1.25
   scene.imageProcessingConfiguration.contrast = 1.08
 
@@ -56,13 +56,12 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
   camera.wheelPrecision = 28
   camera.attachControl(canvas, true)
 
-  // Soleil fixe — direction constante, ne suit PAS la caméra
-  // Une direction fixe crée un vrai côté jour et un vrai côté nuit
+  // Sun Light
   const sun = new DirectionalLight('sun-light', new Vector3(-1.2, -0.6, -0.8), scene)
   sun.intensity = 1.4
-  sun.diffuse = new Color3(1.0, 0.97, 0.88) // légère teinte chaude solaire
+  sun.diffuse = new Color3(1.0, 0.97, 0.88)
 
-  // Lumière ambiante — débouche le côté nuit et illumine les zones d'ombre
+  // Ambient Light
   const ambient = new HemisphericLight('ambient-light', new Vector3(0, 1, 0), scene)
   ambient.intensity = 0.18
   ambient.diffuse = new Color3(0.25, 0.30, 0.38)
@@ -95,8 +94,7 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
   material.environmentIntensity = 0.0
   material.backFaceCulling = true
 
-  // la texture par cette valeur pour booster la luminosité sans toucher les JPG.
-  // 1.0 = neutre, 1.3 = +30% de luminosité. Ajuster si trop clair ou trop sombre.
+  // Increase the brightness of the globe material to make it more visible in dark scenes without a texture
   material.albedoColor = new Color3(1.28, 1.28, 1.28)
 
   spaceMaterial.disableLighting = true
@@ -153,8 +151,9 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
   let roughnessTexture: Texture | null = null
 
   scene.onBeforeRenderObservable.add(() => {
-    globe.rotation.y += engine.getDeltaTime() * 0.00008
-    clouds.rotation.y += engine.getDeltaTime() * 0.00012
+    globe.rotation.y += engine.getDeltaTime() * 0.00004
+    clouds.rotation.y += engine.getDeltaTime() * 0.00006
+    clouds.rotation.x += engine.getDeltaTime() * 0.000001
 
     const forward = camera.target.subtract(camera.position).normalize()
 
@@ -237,7 +236,7 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
             material.metallicTexture = roughnessTexture
             material.useRoughnessFromMetallicTextureAlpha = false
             material.useRoughnessFromMetallicTextureGreen = true
-            material.roughness = 1.0
+            material.roughness = 0.77
           },
           () => {
             material.metallicTexture = null
@@ -255,6 +254,9 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
 
       spaceMaterial.diffuseTexture = spaceTexture
       spaceMaterial.emissiveTexture = spaceTexture
+    },
+    setCloudsVisible(visible) {
+      clouds.setEnabled(visible)
     },
     dispose() {
       window.removeEventListener('resize', resize)

@@ -22,7 +22,7 @@
     "ambientDiffuseColor": "#6f8fb8",
     "ambientGroundColor": "#1a1a1a",
     "atmosphereColor": "#a0c4e8",
-    "atmosphereGlowIntensity": 0.42,
+    "atmosphereGlowIntensity": 0.30,
     "texturePresets": [
       {
         "id": "carb-350",

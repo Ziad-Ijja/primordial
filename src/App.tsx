@@ -4,6 +4,7 @@ import { periods } from './data/periods'
 
 function App() {
   const [selectedPeriodId, setSelectedPeriodId] = useState(periods[0]?.id ?? '')
+  const [cloudsVisible, setCloudsVisible] = useState(true)
   const selectedPeriod =
     periods.find((period) => period.id === selectedPeriodId) ?? periods[0]
   const [selectedPresetByPeriod, setSelectedPresetByPeriod] = useState<
@@ -94,6 +95,7 @@ function App() {
         immersive
         className="absolute inset-0"
         selectedTexturePath={activeTexturePath}
+        cloudsVisible={cloudsVisible}
       />
 
       <aside className="absolute left-3 top-3 z-30 hidden h-[calc(100vh-24px)] w-[56px] flex-col items-center gap-3 rounded-2xl border border-white/15 bg-black/35 px-2 py-3 backdrop-blur md:flex">
@@ -205,8 +207,22 @@ function App() {
 
         <article className="earth-glass rounded-2xl p-4">
           <p className="text-[11px] uppercase tracking-[0.28em] text-white/65">
-            Texture active
+            Globe Period
           </p>
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => setCloudsVisible((prev) => !prev)}
+              className={[
+                'rounded-lg border px-2.5 py-1.5 text-xs transition',
+                cloudsVisible
+                  ? 'border-cyan-200/60 bg-cyan-300/20 text-cyan-50'
+                  : 'border-white/20 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white',
+              ].join(' ')}
+            >
+              Nuages: {cloudsVisible ? 'ON' : 'OFF'}
+            </button>
+          </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {presets.length > 0 ? (
               presets.map((preset) => {
@@ -239,9 +255,6 @@ function App() {
               </span>
             )}
           </div>
-          <p className="mt-3 text-sm leading-6 text-white/80">
-            {activePreset?.source ?? selectedPeriod.visuals.notes ?? 'Texture temporaire active.'}
-          </p>
         </article>
       </section>
     </main>
