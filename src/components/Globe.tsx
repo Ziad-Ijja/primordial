@@ -8,6 +8,7 @@ interface GlobeProps {
   className?: string
   immersive?: boolean
   cloudsVisible?: boolean
+  rotationEnabled?: boolean
 }
 
 export function Globe({
@@ -15,6 +16,7 @@ export function Globe({
   className = '',
   immersive = false,
   cloudsVisible = true,
+  rotationEnabled = true,
 }: GlobeProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const sceneController = useBabylonScene(canvasRef, createGlobeScene)
@@ -26,6 +28,10 @@ export function Globe({
   useEffect(() => {
     sceneController?.setCloudsVisible(cloudsVisible)
   }, [cloudsVisible, sceneController])
+
+  useEffect(() => {
+    sceneController?.setRotationEnabled(rotationEnabled)
+  }, [rotationEnabled, sceneController])
 
   return (
     <div

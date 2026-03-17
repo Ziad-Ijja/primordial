@@ -14,12 +14,19 @@ import {
   StandardMaterial,
   Texture,
   Vector3,
+  Matrix,
 } from '@babylonjs/core'
 import type { PeriodData } from '../data/types'
+import { findContinent } from '../systems/continentPicker'
+import { ContinentHighlighter } from '../systems/continentHighlighter'
+import { toLatLon } from '../geo/latlon'
+import cambrianData from '../data/cambrian.continents.json'
+import type { GeologicalPeriod } from '../types/geo.types'
 
 export interface GlobeSceneController {
   applyPeriod: (period: PeriodData) => void
   setCloudsVisible: (visible: boolean) => void
+  setRotationEnabled: (enabled: boolean) => void
   dispose: () => void
 }
 
@@ -93,6 +100,53 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
   sun.intensity = 5.5                               // Google Earth noon sun — very strong key
   sun.diffuse   = new Color3(1.0, 0.98, 0.92)      // near-white with subtle warmth
   sun.specular  = Color3.Black()                    // no specular — kills the white hotspot on the pole
+
+  // ------------------------------------------------------------------
+  // Continent Highlighting System
+  // ------------------------------------------------------------------
+  const highlighter = new ContinentHighlighter(scene)
+  // For now, statically use cambrian data. 
+  // Ultimately this should update when applyPeriod is called.
+  let currentGeoPeriod = cambrianData as GeologicalPeriod
+  highlighter.init(currentGeoPeriod)
+
+  // ------------------------------------------------------------------
+  // Interactions : Picking et Debug sur les continents
+  // ------------------------------------------------------------------
+  scene.onPointerMove = () => {
+    const pick = scene.pick(scene.pointerX, scene.pointerY, (mesh) => mesh === globe)
+
+    if (!pick?.hit || !pick.pickedPoint) {
+      highlighter.highlight(null)
+      return
+    }
+
+    // Le globe tourne. Le point 3D impacté (Global World) ne reflète pas 
+    // la pureté des UVs s'il n'est pas ramené dans l'espace de l'objet (Local Space).
+    const invMat = Matrix.Invert(globe.getWorldMatrix())
+    const localPoint = Vector3.TransformCoordinates(pick.pickedPoint, invMat)
+
+    const continent = findContinent(localPoint, currentGeoPeriod)
+    highlighter.highlight(continent)
+  }
+
+  scene.onPointerDown = (_evt, pick) => {
+    if (!pick?.hit || !pick.pickedPoint || pick.pickedMesh !== globe) return
+
+    // Transformation en Local Space
+    const invMat = Matrix.Invert(globe.getWorldMatrix())
+    const localPoint = Vector3.TransformCoordinates(pick.pickedPoint, invMat)
+
+    const { lat, lon } = toLatLon(localPoint)
+    const continent = findContinent(localPoint, currentGeoPeriod)
+
+    console.log("============== CONTINENT DEBUG ==============")
+    console.log(`1. Clic position (Global) : X: ${pick.pickedPoint.x.toFixed(2)}, Y: ${pick.pickedPoint.y.toFixed(2)}, Z: ${pick.pickedPoint.z.toFixed(2)}`)
+    console.log(`2. Clic position (Local)  : X: ${localPoint.x.toFixed(2)}, Y: ${localPoint.y.toFixed(2)}, Z: ${localPoint.z.toFixed(2)}`)
+    console.log(`3. Coordonnées Géo calc   : Lat: ${lat.toFixed(2)}°, Lon: ${lon.toFixed(2)}°`)
+    console.log(`4. Continent détecté      : ${continent ? continent.name : "Aucun (Océan)"}`)
+    console.log("=============================================")
+  }
 
   // ------------------------------------------------------------------
   // Fill light — Sky ambient (Rayleigh-scatter sky blue)
@@ -201,10 +255,14 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
   let spaceTexture:     Texture | null = null
   let roughnessTexture: Texture | null = null
 
+  let isRotationEnabled = true
+
   scene.onBeforeRenderObservable.add(() => {
-    globe.rotation.y  += engine.getDeltaTime() * 0.00004
-    clouds.rotation.y += engine.getDeltaTime() * 0.00006
-    clouds.rotation.x += engine.getDeltaTime() * 0.000001
+    if (isRotationEnabled) {
+      globe.rotation.y  += engine.getDeltaTime() * 0.00004
+      clouds.rotation.y += engine.getDeltaTime() * 0.00006
+      clouds.rotation.x += engine.getDeltaTime() * 0.000001
+    }
 
     // Sun follows the camera with a fixed angular offset in camera-local space.
     // This keeps the visible face always lit while producing oblique shadows
@@ -297,6 +355,10 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
 
     setCloudsVisible(visible) {
       clouds.setEnabled(visible)
+    },
+
+    setRotationEnabled(enabled) {
+      isRotationEnabled = enabled
     },
 
     dispose() {

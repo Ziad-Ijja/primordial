@@ -5,6 +5,7 @@ import { periods } from './data/periods'
 function App() {
   const [selectedPeriodId, setSelectedPeriodId] = useState(periods[0]?.id ?? '')
   const [cloudsVisible, setCloudsVisible] = useState(true)
+  const [rotationEnabled, setRotationEnabled] = useState(true)
   const selectedPeriod =
     periods.find((period) => period.id === selectedPeriodId) ?? periods[0]
   const [selectedSpeciesId, setSelectedSpeciesId] = useState<string | null>(
@@ -67,6 +68,7 @@ function App() {
         immersive
         className="absolute inset-0"
         cloudsVisible={cloudsVisible}
+        rotationEnabled={rotationEnabled}
       />
 
       <aside className="absolute left-3 top-3 z-30 hidden h-[calc(100vh-24px)] w-[56px] flex-col items-center gap-3 rounded-2xl border border-white/15 bg-black/35 px-2 py-3 backdrop-blur md:flex">
@@ -180,7 +182,7 @@ function App() {
           <p className="text-[11px] uppercase tracking-[0.28em] text-white/65">
             Globe Period
           </p>
-          <div className="mt-3">
+          <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setCloudsVisible((prev) => !prev)}
@@ -192,6 +194,18 @@ function App() {
               ].join(' ')}
             >
               Nuages: {cloudsVisible ? 'ON' : 'OFF'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setRotationEnabled((prev) => !prev)}
+              className={[
+                'rounded-lg border px-2.5 py-1.5 text-xs transition',
+                rotationEnabled
+                  ? 'border-cyan-200/60 bg-cyan-300/20 text-cyan-50'
+                  : 'border-white/20 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white',
+              ].join(' ')}
+            >
+              Rotation: {rotationEnabled ? 'ON' : 'OFF'}
             </button>
           </div>
         </article>
