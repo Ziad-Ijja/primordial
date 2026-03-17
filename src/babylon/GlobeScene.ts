@@ -21,12 +21,21 @@ import { findContinent } from '../systems/continentPicker'
 import { ContinentHighlighter } from '../systems/continentHighlighter'
 import { toLatLon } from '../geo/latlon'
 import cambrianData from '../data/cambrian.continents.json'
+import carboniferousData from '../data/carboniferous.continents.json'
+import permianData from '../data/permian.continents.json'
 import type { GeologicalPeriod } from '../types/geo.types'
+
+const CONTINENTS_DATA: Record<string, GeologicalPeriod> = {
+  cambrian: cambrianData as GeologicalPeriod,
+  carboniferous: carboniferousData as GeologicalPeriod,
+  permian: permianData as GeologicalPeriod,
+}
 
 export interface GlobeSceneController {
   applyPeriod: (period: PeriodData) => void
   setCloudsVisible: (visible: boolean) => void
   setRotationEnabled: (enabled: boolean) => void
+  setGridVisible: (visible: boolean) => void
   dispose: () => void
 }
 
@@ -102,53 +111,6 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
   sun.specular  = Color3.Black()                    // no specular — kills the white hotspot on the pole
 
   // ------------------------------------------------------------------
-  // Continent Highlighting System
-  // ------------------------------------------------------------------
-  const highlighter = new ContinentHighlighter(scene)
-  // For now, statically use cambrian data. 
-  // Ultimately this should update when applyPeriod is called.
-  let currentGeoPeriod = cambrianData as GeologicalPeriod
-  highlighter.init(currentGeoPeriod)
-
-  // ------------------------------------------------------------------
-  // Interactions : Picking et Debug sur les continents
-  // ------------------------------------------------------------------
-  scene.onPointerMove = () => {
-    const pick = scene.pick(scene.pointerX, scene.pointerY, (mesh) => mesh === globe)
-
-    if (!pick?.hit || !pick.pickedPoint) {
-      highlighter.highlight(null)
-      return
-    }
-
-    // Le globe tourne. Le point 3D impacté (Global World) ne reflète pas 
-    // la pureté des UVs s'il n'est pas ramené dans l'espace de l'objet (Local Space).
-    const invMat = Matrix.Invert(globe.getWorldMatrix())
-    const localPoint = Vector3.TransformCoordinates(pick.pickedPoint, invMat)
-
-    const continent = findContinent(localPoint, currentGeoPeriod)
-    highlighter.highlight(continent)
-  }
-
-  scene.onPointerDown = (_evt, pick) => {
-    if (!pick?.hit || !pick.pickedPoint || pick.pickedMesh !== globe) return
-
-    // Transformation en Local Space
-    const invMat = Matrix.Invert(globe.getWorldMatrix())
-    const localPoint = Vector3.TransformCoordinates(pick.pickedPoint, invMat)
-
-    const { lat, lon } = toLatLon(localPoint)
-    const continent = findContinent(localPoint, currentGeoPeriod)
-
-    console.log("============== CONTINENT DEBUG ==============")
-    console.log(`1. Clic position (Global) : X: ${pick.pickedPoint.x.toFixed(2)}, Y: ${pick.pickedPoint.y.toFixed(2)}, Z: ${pick.pickedPoint.z.toFixed(2)}`)
-    console.log(`2. Clic position (Local)  : X: ${localPoint.x.toFixed(2)}, Y: ${localPoint.y.toFixed(2)}, Z: ${localPoint.z.toFixed(2)}`)
-    console.log(`3. Coordonnées Géo calc   : Lat: ${lat.toFixed(2)}°, Lon: ${lon.toFixed(2)}°`)
-    console.log(`4. Continent détecté      : ${continent ? continent.name : "Aucun (Océan)"}`)
-    console.log("=============================================")
-  }
-
-  // ------------------------------------------------------------------
   // Fill light — Sky ambient (Rayleigh-scatter sky blue)
   // ------------------------------------------------------------------
   const skyFill = new HemisphericLight('sky-fill', new Vector3(0, 1, 0), scene)
@@ -172,9 +134,110 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
   )
   const clouds = MeshBuilder.CreateSphere(
     'cloud-layer',
-    { diameter: 4.28, segments: 64 },
+    { diameter: 4.33, segments: 64 },
     scene,
   )
+
+  // ------------------------------------------------------------------
+  // Grid System (Equator + Lat/Lon)
+  // ------------------------------------------------------------------
+  const gridMeshes: Mesh[] = []
+  const drawGrid = () => {
+    const radius = 2.102 // slightly above globe, below highlights
+    const colorLat = new Color4(1, 1, 1, 0.15)
+    const colorEq = new Color4(1, 0.8, 0, 0.5) // Equator in yellow
+    const colorLon = new Color4(1, 1, 1, 0.1)
+
+    // Latitudes (every 15 degrees)
+    for (let lat = -75; lat <= 75; lat += 15) {
+      const isEquator = lat === 0
+      const points: Vector3[] = []
+      const colors: Color4[] = []
+      const latRad = (lat * Math.PI) / 180
+      const y = radius * Math.sin(latRad)
+      const r = radius * Math.cos(latRad)
+
+      for (let lon = 0; lon <= 360; lon += 5) {
+        const lonRad = (lon * Math.PI) / 180
+        points.push(new Vector3(r * Math.cos(lonRad), y, r * Math.sin(lonRad)))
+        colors.push(isEquator ? colorEq : colorLat)
+      }
+
+      const line = MeshBuilder.CreateLines(`lat_${lat}`, { points, colors }, scene)
+      line.parent = globe
+      line.isVisible = false
+      line.isPickable = false
+      gridMeshes.push(line)
+    }
+
+    // Longitudes (every 30 degrees)
+    for (let lon = 0; lon < 360; lon += 30) {
+      const points: Vector3[] = []
+      const colors: Color4[] = []
+      const lonRad = (lon * Math.PI) / 180
+
+      for (let lat = -90; lat <= 90; lat += 5) {
+        const latRad = (lat * Math.PI) / 180
+        const r = radius * Math.cos(latRad)
+        points.push(new Vector3(r * Math.cos(lonRad), radius * Math.sin(latRad), r * Math.sin(lonRad)))
+        colors.push(colorLon)
+      }
+
+      const line = MeshBuilder.CreateLines(`lon_${lon}`, { points, colors }, scene)
+      line.parent = globe
+      line.isVisible = false
+      line.isPickable = false
+      gridMeshes.push(line)
+    }
+  }
+  drawGrid()
+
+  // ------------------------------------------------------------------
+  // Continent Highlighting System
+  // ------------------------------------------------------------------
+  const highlighter = new ContinentHighlighter(scene, globe)
+  let currentGeoPeriod: GeologicalPeriod | null = null
+
+  // ------------------------------------------------------------------
+  // Interactions: Continent picking on pointer events
+  // ------------------------------------------------------------------
+  scene.onPointerMove = () => {
+    const pick = scene.pick(scene.pointerX, scene.pointerY, (mesh) => mesh === globe)
+
+    if (!pick?.hit || !pick.pickedPoint) {
+      highlighter.highlight(null)
+      return
+    }
+
+    // Convert global picked point into globe's local space when it rotates
+    const invMat = Matrix.Invert(globe.getWorldMatrix())
+    const localPoint = Vector3.TransformCoordinates(pick.pickedPoint, invMat)
+
+    if (currentGeoPeriod) {
+      const continent = findContinent(localPoint, currentGeoPeriod)
+      highlighter.highlight(continent)
+    }
+  }
+
+  scene.onPointerDown = (_evt, pick) => {
+    if (!pick?.hit || !pick.pickedPoint || pick.pickedMesh !== globe) return
+
+    const invMat = Matrix.Invert(globe.getWorldMatrix())
+    const localPoint = Vector3.TransformCoordinates(pick.pickedPoint, invMat)
+
+    if (currentGeoPeriod) {
+      const { lat, lon } = toLatLon(localPoint)
+      const continent = findContinent(localPoint, currentGeoPeriod)
+      const continentName = continent ? continent.name : "Ocean"
+
+      console.log("============== CONTINENT DEBUG ==============")
+      console.log(`1. Global Pick : X: ${pick.pickedPoint.x.toFixed(2)}, Y: ${pick.pickedPoint.y.toFixed(2)}, Z: ${pick.pickedPoint.z.toFixed(2)}`)
+      console.log(`2. Local Pick  : X: ${localPoint.x.toFixed(2)}, Y: ${localPoint.y.toFixed(2)}, Z: ${localPoint.z.toFixed(2)}`)
+      console.log(`3. Geo Coords  : Lat: ${lat.toFixed(2)}°, Lon: ${lon.toFixed(2)}°`)
+      console.log(`4. Detected    : ${continentName}`)
+      console.log("=============================================")
+    }
+  }
 
   // ------------------------------------------------------------------
   // Materials
@@ -294,6 +357,15 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
       scene.clearColor = color4FromHex('#000000')
       scene.fogMode    = Scene.FOGMODE_NONE
 
+      // Update geological continent data dynamically
+      if (CONTINENTS_DATA[period.id]) {
+        currentGeoPeriod = CONTINENTS_DATA[period.id]
+        highlighter.init(currentGeoPeriod)
+      } else {
+        currentGeoPeriod = null
+        highlighter.highlight(null)
+      }
+
       // Direct assignment — JSON values are already final, no hidden multipliers
       sun.intensity    = period.visuals.sunLightIntensity
       sun.diffuse      = Color3.FromHexString(period.visuals.sunDiffuseColor ?? '#fff8e0')
@@ -359,6 +431,12 @@ export function createGlobeScene(canvas: HTMLCanvasElement): GlobeSceneControlle
 
     setRotationEnabled(enabled) {
       isRotationEnabled = enabled
+    },
+
+    setGridVisible(visible) {
+      gridMeshes.forEach((mesh) => {
+        mesh.isVisible = visible
+      })
     },
 
     dispose() {

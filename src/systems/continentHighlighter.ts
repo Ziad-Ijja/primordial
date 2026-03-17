@@ -1,41 +1,172 @@
-import { Scene, Mesh } from "@babylonjs/core"
-import type { GeologicalPeriod, Continent } from "../types/geo.types"
+import { Scene, Mesh, StandardMaterial, Color3, Vector3, VertexData } from "@babylonjs/core"
+import earcut from "earcut"
+import type { Continent, LatLon } from "../types/geo.types"
 
 export class ContinentHighlighter {
-  private highlightMeshes: Map<string, Mesh> = new Map()
+  private highlightMeshes: Map<string, Mesh[]> = new Map()
+  private scene: Scene
+  private globe: Mesh
+  private activeContinent: string | null = null
 
-  constructor(scene: Scene) {
-    // scene is used for mesh creation down the road
+  constructor(scene: Scene, globe: Mesh) {
+    this.scene = scene
+    this.globe = globe
     scene.onDisposeObservable.add(() => {
-      this.highlightMeshes.forEach(mesh => mesh.dispose())
+      this.highlightMeshes.forEach(meshes => meshes.forEach(m => m.dispose()))
     })
   }
 
-  public init(_period: GeologicalPeriod) {
-    this.highlightMeshes.forEach(mesh => mesh.dispose())
+  // Helper to convert Lat/Lon to 3D point on unit sphere
+  private latLonToVector3(lat: number, lon: number): Vector3 {
+    const latRad = (lat * Math.PI) / 180
+    const lonRad = (lon * Math.PI) / 180
+
+    const x = Math.cos(latRad) * Math.cos(lonRad)
+    const y = Math.sin(latRad)
+    const z = Math.cos(latRad) * Math.sin(lonRad)
+
+    return new Vector3(x, y, z)
+  }
+
+  // Subdivides large flat triangles to match the sphere's curvature
+  private subdivide(positions: number[], indices: number[], subdivisions: number, radius: number) {
+    let currentPositions = [...positions]
+    let currentIndices = [...indices]
+
+    for (let step = 0; step < subdivisions; step++) {
+      const nextIndices: number[] = []
+      const midpointCache = new Map<string, number>()
+
+      const getMidpoint = (i1: number, i2: number) => {
+        const key = i1 < i2 ? `${i1}_${i2}` : `${i2}_${i1}`
+        if (midpointCache.has(key)) return midpointCache.get(key)!
+
+        const x1 = currentPositions[i1 * 3]
+        const y1 = currentPositions[i1 * 3 + 1]
+        const z1 = currentPositions[i1 * 3 + 2]
+        const x2 = currentPositions[i2 * 3]
+        const y2 = currentPositions[i2 * 3 + 1]
+        const z2 = currentPositions[i2 * 3 + 2]
+
+        let mx = (x1 + x2) / 2
+        let my = (y1 + y2) / 2
+        let mz = (z1 + z2) / 2
+
+        const len = Math.sqrt(mx * mx + my * my + mz * mz)
+        if (len !== 0) {
+          mx = (mx / len) * radius
+          my = (my / len) * radius
+          mz = (mz / len) * radius
+        }
+
+        const newIndex = currentPositions.length / 3
+        currentPositions.push(mx, my, mz)
+        midpointCache.set(key, newIndex)
+        return newIndex
+      }
+
+      for (let i = 0; i < currentIndices.length; i += 3) {
+        const v1 = currentIndices[i]
+        const v2 = currentIndices[i + 1]
+        const v3 = currentIndices[i + 2]
+
+        const m12 = getMidpoint(v1, v2)
+        const m23 = getMidpoint(v2, v3)
+        const m31 = getMidpoint(v3, v1)
+
+        // Generate 4 smaller triangles
+        nextIndices.push(v1, m12, m31)
+        nextIndices.push(v2, m23, m12)
+        nextIndices.push(v3, m31, m23)
+        nextIndices.push(m12, m23, m31)
+      }
+      currentIndices = nextIndices
+    }
+
+    return { positions: currentPositions, indices: currentIndices }
+  }
+
+  // Core mesh generation system
+  public init(data: { name: string; continents: any[] }) {
+    // Clear existing
+    this.highlightMeshes.forEach(meshes => meshes.forEach(m => m.dispose()))
     this.highlightMeshes.clear()
 
-    // Create a generic highlight mesh (since we don't have accurate continent meshes yet, 
-    // we'll just use a small sphere indicator or keep it conceptual for this specific system design)
-    // Based on requirements: "One mesh per continent, slightly scaled above globe (~1.01), semi-transparent"
-    // To properly do this, we'd need exact triangulated meshes of continents. 
-    // Since we only have polygons, we'll construct simplistic approximations or rely on a generic highlight.
-    
-    // For now, keeping the system interface as requested.
+    const mat = new StandardMaterial("highlightMat", this.scene)
+    mat.emissiveColor = new Color3(1, 1, 0)
+    mat.alpha = 0.5
+    mat.backFaceCulling = false
+    mat.disableLighting = true // Ensures it acts as a pure highlight regardless of normals
+
+    data.continents.forEach(continent => {
+      const polygonsData: LatLon[][] = continent.polygons ? continent.polygons : [continent.polygon]
+      const meshes: Mesh[] = []
+
+      polygonsData.forEach((polygon, index) => {
+        // Step 2: Triangulate polygon in 2D
+        const earcutInput: number[] = []
+        polygon.forEach(p => {
+          earcutInput.push(p.lon, p.lat)
+        })
+
+        const indices = earcut(earcutInput)
+        
+        // Step 3: Project to sphere
+        const positions: number[] = []
+        // Keep the highlight mesh just slightly above the globe (1.008 scale offset rather than 1.02)
+        const radius = 2.1 * 1.008 
+        polygon.forEach(p => {
+          const v3 = this.latLonToVector3(p.lat, p.lon)
+          v3.scaleInPlace(radius)
+          positions.push(v3.x, v3.y, v3.z)
+        })
+
+        // Step 4: Subdivide the flat triangles generated by earcut so they conform to the globe's curvature
+        const subData = this.subdivide(positions, indices, 4, radius)
+
+        // Build Vertex Data for Step 5
+        const vertexData = new VertexData()
+        vertexData.positions = subData.positions
+        vertexData.indices = subData.indices
+
+        // Calculate normals automatically
+        const normals: number[] = []
+        VertexData.ComputeNormals(subData.positions, subData.indices, normals)
+        vertexData.normals = normals
+
+        // Create Babylon Mesh
+        const mesh = new Mesh(`${continent.name}_mesh_${index}`, this.scene)
+        vertexData.applyToMesh(mesh)
+        
+        // Make it a child of the globe so it inherently rotates with it
+        mesh.parent = this.globe
+        
+        mesh.material = mat
+        mesh.isVisible = false // Hidden by default
+        mesh.isPickable = false
+
+        meshes.push(mesh)
+      })
+
+      this.highlightMeshes.set(continent.name, meshes)
+    })
   }
 
+  // Hover logic toggler
   public highlight(continent: Continent | null) {
+    const continentName = continent ? continent.name : null
+    if (this.activeContinent === continentName) return
+    this.activeContinent = continentName
+
     // Hide all
-    this.highlightMeshes.forEach(mesh => {
-      mesh.isVisible = false
+    this.highlightMeshes.forEach(meshes => {
+      meshes.forEach(mesh => (mesh.isVisible = false))
     })
 
-    // Show selected
-    if (continent && this.highlightMeshes.has(continent.name)) {
-      const mesh = this.highlightMeshes.get(continent.name)
-      if (mesh) {
-        mesh.isVisible = true
-      }
+    // Show hovered
+    if (continentName && this.highlightMeshes.has(continentName)) {
+      const meshes = this.highlightMeshes.get(continentName)
+      meshes?.forEach(mesh => (mesh.isVisible = true))
     }
   }
 }

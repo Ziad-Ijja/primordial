@@ -5,7 +5,7 @@
   "description": "Explosion of multicellular life and highly unfamiliar marine ecosystems.",
   "dataState": "placeholder",
   "atmosphere": {
-    "o2Percent": 21,
+    "o2Percent": 12,
     "co2Ppm": 4500,
     "avgTempCelsius": 21,
     "pressureAtm": null,

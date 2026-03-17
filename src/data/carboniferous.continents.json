@@ -1,0 +1,38 @@
+{
+  "name": "Cambrian",
+  "continents": [
+    {
+      "name": "Laurentia",
+      "polygon": [
+        
+      ]
+    },
+    {
+      "name": "Gondwana",
+      "polygon": [
+        
+      ]
+    },
+    {
+      "name": "Siberia",
+      "polygon": [
+        
+      ]
+    },{
+      "name": "Baltica",
+      "polygons": [
+        [
+
+        ],
+        [
+      
+        ]
+      ]
+    },
+    {
+    "name": "Kazakhstania",
+    "polygon": [
+        ]
+    }
+  ]
+}
